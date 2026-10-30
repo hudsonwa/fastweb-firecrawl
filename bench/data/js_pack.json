@@ -1,0 +1,60 @@
+{
+ "note": "JavaScript-rendered pages: the reference phrase is visible after a headless Chrome render but absent from plain-GET extracted text. Pages change; re-check phrases before relying on results.",
+ "pages": [
+  {
+   "cls": "bom",
+   "url": "https://www.bom.gov.au/nsw/forecasts/sydney.shtml",
+   "phrase": "Feels like"
+  },
+  {
+   "cls": "spa",
+   "url": "https://crates.io/crates/serde",
+   "phrase": "Serde is a framework for"
+  },
+  {
+   "cls": "spa",
+   "url": "https://elk.zone/mastodon.social/@Mastodon",
+   "phrase": "primary account for the Mastodon project"
+  },
+  {
+   "cls": "spa",
+   "url": "https://mastodon.social/@Mastodon",
+   "phrase": "joinmastodon.org/sponsors"
+  },
+  {
+   "cls": "spa",
+   "url": "https://excalidraw.com/",
+   "phrase": "Your drawings are saved in your browser"
+  },
+  {
+   "cls": "docs",
+   "url": "https://docsify.js.org/",
+   "phrase": "A magical documentation site generator"
+  },
+  {
+   "cls": "docs",
+   "url": "https://petstore.swagger.io/",
+   "phrase": "Base URL: petstore.swagger.io/v2"
+  },
+  {
+   "cls": "docs",
+   "url": "https://redocly.github.io/redoc/",
+   "phrase": "Cafe Kafka Events"
+  },
+  {
+   "cls": "news",
+   "url": "https://edition.cnn.com/markets",
+   "phrase": "S&P/TSX Composite"
+  },
+  {
+   "cls": "news",
+   "url": "https://regex101.com/",
+   "phrase": "regex101 v14"
+  },
+  {
+   "cls": "news",
+   "url": "https://www.investing.com/currencies/aud-usd",
+   "phrase": "Australian Dollar US Dollar"
+  }
+ ]
+}

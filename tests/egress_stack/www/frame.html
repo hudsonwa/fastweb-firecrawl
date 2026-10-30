@@ -1,0 +1,5 @@
+<html><body><script>
+const T = new URLSearchParams(location.search).get('t');
+const s = document.createElement('script'); s.src = T + '/v/oopif-script'; document.body.appendChild(s);
+fetch(T + '/v/oopif-fetch').catch(() => {});
+</script></body></html>

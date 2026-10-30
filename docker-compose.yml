@@ -1,0 +1,415 @@
+# fastweb: a fast, Firecrawl-API-compatible search + scrape service.
+#
+#   scripts/init-env.sh             # writes .env with generated secrets (SEARXNG_SECRET, Firecrawl's)
+#   docker compose up -d            # fastweb on http://127.0.0.1:3002 (search, scrape, browser tier)
+#   docker compose --profile firecrawl up -d   # optional: self-hosted Firecrawl as the last-resort fallback
+#                                              # (also set FIRECRAWL_UPSTREAM=http://api:3002 and the two
+#                                              # FIRECRAWL_* secrets in .env)
+#
+# The fastweb image is built from this checkout and named after the compose project (<project>-fastweb), so a second
+# copy of the stack (docker compose -p other ...) never overwrites another stack's image. browser-egress and
+# firecrawl-egress build the same Dockerfile under their own names; the layers are shared, so this costs tags, not
+# disk, and keeps every image name scoped to the project.
+#
+# Every port is published on 127.0.0.1 only. There is no authentication: do not expose it to an untrusted network
+# without putting an authenticating reverse proxy in front (see SECURITY.md).
+name: fastweb
+
+# Proxy settings for the Firecrawl containers: every HTTP request leaves through firecrawl-egress except those to
+# the container itself. api adds playwright-service (it sends it render jobs), and playwright-service the proxy
+# itself (see there). Nothing calls api by name from inside (its workers use localhost), so a page redirected to
+# http://api:3002 or http://firecrawl-redis:6379 goes to the proxy, which refuses private addresses. Redis, RabbitMQ and Postgres speak their own protocols.
+x-firecrawl-proxy: &firecrawl-proxy
+  PROXY_SERVER: http://firecrawl-egress:3128
+  HTTP_PROXY: http://firecrawl-egress:3128
+  HTTPS_PROXY: http://firecrawl-egress:3128
+  http_proxy: http://firecrawl-egress:3128
+  https_proxy: http://firecrawl-egress:3128
+  NO_PROXY: localhost,127.0.0.1
+  no_proxy: localhost,127.0.0.1
+  NODE_USE_ENV_PROXY: "1"
+
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
+services:
+  # Firecrawl-compatible fetch/search front (fastweb_firecrawl/). Plain GET + trafilatura first, a warm headless Chrome for
+  # thin/blocked pages, Firecrawl (when configured) only when the browser tier is off, busy or down.
+  fastweb:
+    build: .
+    init: true  # pid 1 reaps extraction worker processes orphaned if their forkserver dies
+    environment:
+      FIRECRAWL_UPSTREAM: ${FIRECRAWL_UPSTREAM:-}
+      SEARXNG_URL: http://searxng:8080
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-yahoo}
+      SEARXNG_CATEGORIES: ${SEARXNG_CATEGORIES:-}
+      FASTWEB_SEARCH_FALLBACK_ENGINES: ${FASTWEB_SEARCH_FALLBACK_ENGINES:-privacywall,brave}
+      FASTWEB_SEARCH_RELEVANCE: ${FASTWEB_SEARCH_RELEVANCE:-1}
+      FASTWEB_SEARCH_HEDGE: ${FASTWEB_SEARCH_HEDGE:-1.1}
+      FASTWEB_SEARCH_DEADLINE: ${FASTWEB_SEARCH_DEADLINE:-3.0}
+      FASTWEB_SEARCH_TTL: ${FASTWEB_SEARCH_TTL:-900}
+      FASTWEB_SEARCH_WARM: ${FASTWEB_SEARCH_WARM:-1}
+      # fastweb's own cache-only Redis (search + scrape caches, per-host memory).
+      FASTWEB_REDIS_URL: redis://fastweb-redis:6379/0
+      FASTWEB_PLAIN_CONCURRENCY: ${FASTWEB_PLAIN_CONCURRENCY:-8}
+      FASTWEB_FALLBACK_TIMEOUT: ${FASTWEB_FALLBACK_TIMEOUT:-12}
+      FASTWEB_UPSTREAM_CONCURRENCY: ${FASTWEB_UPSTREAM_CONCURRENCY:-3}
+      FASTWEB_INFLIGHT_BYTES: ${FASTWEB_INFLIGHT_BYTES:-50331648}
+      # Prefetch-on-search: top-N results into the scrape cache, cheap tiers only; N=0 disables.
+      FASTWEB_PREFETCH_N: ${FASTWEB_PREFETCH_N:-5}
+      FASTWEB_PREFETCH_CONCURRENCY: ${FASTWEB_PREFETCH_CONCURRENCY:-4}
+      FASTWEB_PREFETCH_QUEUE: ${FASTWEB_PREFETCH_QUEUE:-64}
+      FASTWEB_PREFETCH_PER_HOST: ${FASTWEB_PREFETCH_PER_HOST:-2}
+      FASTWEB_PREFETCH_TIMEOUT: ${FASTWEB_PREFETCH_TIMEOUT:-6}
+      FASTWEB_PREFETCH_MAX_BYTES: ${FASTWEB_PREFETCH_MAX_BYTES:-4194304}
+      FASTWEB_PREFETCH_MAX_HTML: ${FASTWEB_PREFETCH_MAX_HTML:-3500000}
+      FASTWEB_PREFETCH_MEM_FRAC: ${FASTWEB_PREFETCH_MEM_FRAC:-0.6}
+      FASTWEB_PREFETCH_MAX_AGE: ${FASTWEB_PREFETCH_MAX_AGE:-12}
+      # Browser tier: warm headless Chrome for thin/blocked pages. FASTWEB_BROWSER=0 turns it off.
+      FASTWEB_BROWSER: ${FASTWEB_BROWSER:-1}
+      FASTWEB_BROWSER_URL: http://browser:9222
+      FASTWEB_BROWSER_EGRESS: http://browser-egress:3128  # its /token proves an egress marker is the proxy's
+      FASTWEB_BROWSER_TABS: ${FASTWEB_BROWSER_TABS:-2}
+      FASTWEB_BROWSER_SETTLE: ${FASTWEB_BROWSER_SETTLE:-3}
+      FASTWEB_BROWSER_TIMEOUT: ${FASTWEB_BROWSER_TIMEOUT:-4}
+      # Suspect SPA: a small app-shell page served "ok" is rendered; kept only when much bigger. 0 = off.
+      FASTWEB_BROWSER_SUSPECT: ${FASTWEB_BROWSER_SUSPECT:-1}
+      # Passed through only when set in .env (empty = the code default, see the README table).
+      FASTWEB_SEARCH_CONCURRENCY: ${FASTWEB_SEARCH_CONCURRENCY:-}
+      FASTWEB_SEARCH_QUEUE: ${FASTWEB_SEARCH_QUEUE:-}
+      FASTWEB_SEARCH_QUEUE_TIMEOUT: ${FASTWEB_SEARCH_QUEUE_TIMEOUT:-}
+      FASTWEB_SEARCH_FALLBACK_TTL: ${FASTWEB_SEARCH_FALLBACK_TTL:-}
+      FASTWEB_FETCH_TIMEOUT: ${FASTWEB_FETCH_TIMEOUT:-}
+      FASTWEB_MAX_BYTES: ${FASTWEB_MAX_BYTES:-}
+      FASTWEB_IMPERSONATE: ${FASTWEB_IMPERSONATE:-}
+      FASTWEB_EXTRACT_TIMEOUT: ${FASTWEB_EXTRACT_TIMEOUT:-}
+      FASTWEB_SCRAPE_TTL: ${FASTWEB_SCRAPE_TTL:-}
+      FASTWEB_HOST_TTL: ${FASTWEB_HOST_TTL:-}
+      FASTWEB_FIRECRAWL_TTL: ${FASTWEB_FIRECRAWL_TTL:-}
+      FASTWEB_BROWSER_WAIT: ${FASTWEB_BROWSER_WAIT:-}
+      FASTWEB_BROWSER_RECYCLE: ${FASTWEB_BROWSER_RECYCLE:-}
+      FASTWEB_MAX_BODY_BYTES: ${FASTWEB_MAX_BODY_BYTES:-}
+      FASTWEB_MAX_TIMEOUT: ${FASTWEB_MAX_TIMEOUT:-}
+      FASTWEB_MAX_SEARCH_LIMIT: ${FASTWEB_MAX_SEARCH_LIMIT:-}
+      FASTWEB_USER_AGENT: ${FASTWEB_USER_AGENT:-}
+    ports:
+      - "127.0.0.1:${FASTWEB_PORT:-3002}:3002"
+    networks: [backend, browsernet, firecrawlnet]
+    depends_on:
+      searxng:
+        condition: service_started
+      fastweb-redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]  # the extraction forkserver's socket
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    cpus: 1.0
+    mem_limit: 768M
+    memswap_limit: 768M
+    logging: *logging
+    restart: unless-stopped
+
+  # Cache-only Redis for fastweb: bounded (LRU eviction), no persistence, private network only.
+  fastweb-redis:
+    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    command: redis-server --maxmemory 192mb --maxmemory-policy allkeys-lru --save '' --appendonly no
+    read_only: true
+    tmpfs: ["/data:uid=999,gid=1000,size=8m"]   # nothing is persisted; the redis user owns it
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]   # the entrypoint drops to the redis user
+    security_opt: [no-new-privileges:true]
+    cpus: 0.25
+    mem_limit: 256M
+    memswap_limit: 256M
+    logging: *logging
+    restart: unless-stopped
+
+  # Metasearch backend. Private network only: no host port. settings.yml enables the JSON format and disables the
+  # limiter (fastweb is its only client).
+  searxng:
+    image: searxng/searxng:2026.10.29-cff884f98@sha256:dc2f7ed8a215b2f8244eaed083acdd50406f0de18bf43410cc460a4b511b7424
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      # Overrides the placeholder secret_key in searxng/settings.yml; set it in .env (never committed).
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in .env (openssl rand -hex 32)}
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    networks: [backend]
+    # Not read_only: the image's entrypoint rewrites the CA bundle (update-ca-certificates) at every start.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    cpus: 1.0
+    mem_limit: 512M
+    memswap_limit: 512M
+    logging: *logging
+    restart: unless-stopped
+
+  # Headless Chrome for the browser tier, driven over raw CDP; no published port. browsernet is internal (no gateway):
+  # Chrome reaches nothing by itself, only browser-egress, the guarded proxy (fastweb_firecrawl/egress.py) that resolves, checks
+  # and pins every host. fastweb also checks the page's requests over CDP. QUIC and non-proxied WebRTC UDP are off so
+  # nothing skips the proxy; popups are blocked. Non-root, read-only, bounded pids.
+  # --no-sandbox stays (the image's run.sh sets it): Chrome's sandbox needs user namespaces or a setuid helper, i.e.
+  # privileges this container does not get; the network boundary above is the containment instead.
+  # supervise.sh restarts a Chrome that stops answering CDP; fastweb recycles it every ~200 pages.
+  browser:
+    image: chromedp/headless-shell:157.0.8103.27@sha256:7bee201478b2f6266aae01243740ee85c16281e32f42d3aed9fdf04f4eace7a1
+    entrypoint: ["bash", "/supervise.sh"]
+    command: ["--disable-background-networking", "--disable-sync",
+              "--disable-component-update", "--no-first-run", "--mute-audio", "--disable-gpu",
+              "--proxy-server=http://browser-egress:3128", "--proxy-bypass-list=<-loopback>", "--disable-quic",
+              "--force-webrtc-ip-handling-policy=disable_non_proxied_udp", "--block-new-web-contents"]
+    volumes: ["./browser/supervise.sh:/supervise.sh:ro"]
+    networks: [browsernet]
+    user: "65534:65534"
+    environment:
+      HOME: /tmp
+    read_only: true
+    tmpfs: ["/tmp:size=256m,mode=1777"]
+    pids_limit: 256
+    shm_size: 512m
+    healthcheck:  # CDP answers (no curl in the image: bash /dev/tcp). Chrome ignores HTTP/1.0 requests here.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9223 && printf 'GET /json/version HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q webSocketDebuggerUrl <&3"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1.5
+    mem_limit: 1g
+    memswap_limit: 1g
+    logging: *logging
+    restart: unless-stopped
+
+  # The browser's only route out: an asyncio forward proxy (CONNECT + absolute-URI HTTP) that refuses non-public
+  # addresses and ports other than 80/443/8080/8443, and connects to the address it checked (no DNS rebinding).
+  # Same image as fastweb, own container, so page bytes never touch fastweb's event loop. GET /stats: counters.
+  browser-egress:
+    build: .
+    # 256 connections x 2 x 64 KiB pump buffers stays well inside mem_limit (a flood gets 503, not an OOM restart)
+    command: ["python", "-m", "fastweb_firecrawl.egress", "--host", "0.0.0.0", "--max-conns", "256"]
+    networks: [browsernet, default]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 3128), 3); s.sendall(b'GET /stats HTTP/1.1\\r\\n\\r\\n'); assert s.recv(64).startswith(b'HTTP/1.1 200')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 0.5
+    mem_limit: 128m
+    memswap_limit: 128m
+    logging: *logging
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # Optional: self-hosted Firecrawl (profile "firecrawl") as fastweb's last-resort fallback. Heavy (~10 GB of images,
+  # several GB of RAM). Images are pinned by digest; Firecrawl publishes self-host images under :latest only.
+  #
+  # Firecrawl fetches and renders pages itself, outside fastweb's per-hop SSRF checks. So, like the browser, it lives
+  # on its own internal network (firecrawlnet: no gateway) with its own Redis, RabbitMQ and Postgres, and its only
+  # route to the internet is firecrawl-egress, a second instance of the guarding egress proxy. It cannot reach
+  # fastweb-redis, SearXNG or the browser. No host port is published: fastweb reaches it as http://api:3002.
+  # A Firecrawl request that ignores the proxy settings fails: there is no other route out.
+  # ---------------------------------------------------------------------------------------------------------------
+  api:
+    profiles: [firecrawl]
+    image: ghcr.io/firecrawl/firecrawl:latest@sha256:780592f58b4a99beee4424f1acadacf34bcefb02d5893f4bd1a9cb2554bf0a19
+    environment:
+      <<: *firecrawl-proxy
+      NO_PROXY: localhost,127.0.0.1,playwright-service
+      no_proxy: localhost,127.0.0.1,playwright-service
+      HOST: "0.0.0.0"
+      PORT: "3002"
+      ENV: local
+      USE_DB_AUTHENTICATION: "false"
+      REDIS_URL: redis://firecrawl-redis:6379
+      REDIS_RATE_LIMIT_URL: redis://firecrawl-redis:6379
+      PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${FIRECRAWL_POSTGRES_PASSWORD:-}
+      POSTGRES_DB: postgres
+      POSTGRES_HOST: nuq-postgres
+      POSTGRES_PORT: "5432"
+      NUM_WORKERS_PER_QUEUE: "2"
+      NUQ_WORKER_COUNT: "2"
+      WORKER_CONCURRENCY: "3"
+      CRAWL_CONCURRENT_REQUESTS: "3"
+      MAX_CONCURRENT_JOBS: "3"
+      BROWSER_POOL_SIZE: "3"
+      BULL_AUTH_KEY: ${FIRECRAWL_BULL_AUTH_KEY:-}
+      LOGGING_LEVEL: info
+      MAX_CPU: "0.85"
+      MAX_RAM: "0.85"
+      NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+      HARNESS_STARTUP_TIMEOUT_MS: "90000"
+    depends_on:
+      firecrawl-secrets:
+        condition: service_completed_successfully
+      firecrawl-redis:
+        condition: service_started
+      playwright-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      nuq-postgres:
+        condition: service_started
+      firecrawl-egress:
+        condition: service_healthy
+    # Node's default heap (~2 GB) runs out on long uptimes; the flag goes on the harness only (NODE_OPTIONS would be
+    # inherited by every worker).
+    command: node --max-old-space-size=3072 dist/src/harness.js --start-docker
+    networks: [firecrawlnet]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 2.0
+    mem_limit: 6G
+    memswap_limit: 6G
+    logging: *logging
+    restart: unless-stopped
+
+  playwright-service:
+    profiles: [firecrawl]
+    image: ghcr.io/firecrawl/playwright-service:latest@sha256:df1a393ce8bfc3801570a826a9b0dcc400ae48789adb4a0ad9d6cbf0229b059b
+    environment:
+      <<: *firecrawl-proxy
+      # Its in-process SSRF proxy hands every request to PROXY_SERVER itself; without firecrawl-egress here Node's
+      # env proxy (NODE_USE_ENV_PROXY) would proxy that hop a second time and send the proxy's own port as the
+      # target port (GET http://host:3128/), which the egress refuses. This adds no route: Chrome still reaches
+      # nothing but firecrawl-egress.
+      NO_PROXY: localhost,127.0.0.1,firecrawl-egress
+      no_proxy: localhost,127.0.0.1,firecrawl-egress
+      PORT: 3000
+      # The image's own SSRF pre-check resolves the target host and treats a failed lookup as "internal". On
+      # firecrawlnet (no gateway, no outside DNS) every lookup fails, so it would refuse every page. This switches
+      # off only that pre-check: Chrome still leaves only through firecrawl-egress (PROXY_SERVER), which resolves
+      # each host itself and refuses private addresses. The egress proxy is the enforcing guard here (SECURITY.md).
+      ALLOW_LOCAL_WEBHOOKS: "true"
+      BLOCK_MEDIA: "true"
+      MAX_CONCURRENT_PAGES: "3"
+    networks: [firecrawlnet]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 512
+    cpus: 1.5
+    mem_limit: 2G
+    memswap_limit: 2G
+    logging: *logging
+    restart: unless-stopped
+
+  # Firecrawl's only route out: the same guarding proxy as browser-egress, in its own container.
+  firecrawl-egress:
+    profiles: [firecrawl]
+    build: .
+    # 256 connections x 2 x 64 KiB pump buffers stays well inside mem_limit (a flood gets 503, not an OOM restart)
+    command: ["python", "-m", "fastweb_firecrawl.egress", "--host", "0.0.0.0", "--max-conns", "256"]
+    networks: [firecrawlnet, default]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 3128), 3); s.sendall(b'GET /stats HTTP/1.1\\r\\n\\r\\n'); assert s.recv(64).startswith(b'HTTP/1.1 200')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    pids_limit: 64
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 0.5
+    mem_limit: 128m
+    memswap_limit: 128m
+    logging: *logging
+    restart: unless-stopped
+
+  # Stops the Firecrawl profile from starting until its two secrets are set in .env (they have no default).
+  firecrawl-secrets:
+    profiles: [firecrawl]
+    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    entrypoint: ["sh", "-c", "test -n \"$$P\" && test -n \"$$K\" || { echo 'set FIRECRAWL_POSTGRES_PASSWORD and FIRECRAWL_BULL_AUTH_KEY in .env' >&2; exit 1; }"]
+    environment:
+      P: ${FIRECRAWL_POSTGRES_PASSWORD:-}
+      K: ${FIRECRAWL_BULL_AUTH_KEY:-}
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+
+  firecrawl-redis:
+    profiles: [firecrawl]
+    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    networks: [firecrawlnet]
+    command: redis-server --save "" --appendonly no
+    read_only: true
+    tmpfs: ["/data:uid=999,gid=1000,size=8m"]   # nothing is persisted; the redis user owns it
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]   # the entrypoint drops to the redis user
+    security_opt: [no-new-privileges:true]
+    cpus: 0.25
+    mem_limit: 256M
+    memswap_limit: 256M
+    logging: *logging
+    restart: unless-stopped
+
+  rabbitmq:
+    profiles: [firecrawl]
+    image: rabbitmq:3.13-alpine@sha256:d7af1c87c5f1eda13fcfca06db452bf3aeab6619fc3358b68535c0c02c4e52bc
+    networks: [firecrawlnet]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]   # the entrypoint fixes ownership, then drops privileges
+    security_opt: [no-new-privileges:true]
+    cpus: 0.5
+    mem_limit: 512M
+    memswap_limit: 512M
+    logging: *logging
+    restart: unless-stopped
+
+  nuq-postgres:
+    profiles: [firecrawl]
+    image: ghcr.io/firecrawl/nuq-postgres:latest@sha256:aed86f62858f29bd971abddcdeb301c12888098d2cf5d33c1ba42b053bc460f6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${FIRECRAWL_POSTGRES_PASSWORD:-}
+      POSTGRES_DB: postgres
+    networks: [firecrawlnet]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]   # the entrypoint fixes ownership, then drops privileges
+    security_opt: [no-new-privileges:true]
+    cpus: 0.5
+    mem_limit: 512M
+    memswap_limit: 512M
+    pids_limit: 256
+    logging: *logging
+    restart: unless-stopped
+
+networks:
+  backend:
+    driver: bridge
+  browsernet:  # fastweb <-> browser <-> browser-egress; internal: no gateway, no route out
+    driver: bridge
+    internal: true
+  firecrawlnet:  # optional Firecrawl profile <-> fastweb, firecrawl-egress; internal: no gateway, no route out
+    driver: bridge
+    internal: true
+  default:  # the egress proxies' way out
+    driver: bridge

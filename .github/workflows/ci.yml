@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install
+        run: pip install -r requirements-dev.txt && pip install --no-deps -e .
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy
+      - name: Known vulnerabilities in pinned dependencies
+        run: pip-audit -r requirements.txt
+      - name: Unit tests (local servers only, no external network)
+        # the whole suite, slow tests included, in parallel; fails below 90 % line coverage of fastweb_firecrawl/
+        run: pytest -q -m "" --cov=fastweb_firecrawl --cov-report=term --cov-fail-under=90
+      - name: Compose file is valid
+        run: SEARXNG_SECRET=ci docker compose config -q && SEARXNG_SECRET=ci docker compose --profile firecrawl config -q
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Build the image
+        run: docker build -t fastweb-ci .
+      - name: Boot it and check /health
+        run: |
+          docker run -d --name fastweb-ci -p 127.0.0.1:3002:3002 \
+            -e FASTWEB_REDIS_URL= -e FASTWEB_BROWSER=0 -e FASTWEB_PREFETCH_N=0 fastweb-ci
+          for i in $(seq 30); do
+            curl -fsS http://127.0.0.1:3002/health && exit 0
+            sleep 1
+          done
+          docker logs fastweb-ci
+          exit 1
+      - name: The egress proxy starts from the same image
+        run: |
+          docker run -d --name egress-ci -p 127.0.0.1:3128:3128 fastweb-ci python -m fastweb_firecrawl.egress --host 0.0.0.0
+          for i in $(seq 15); do
+            curl -fsS http://127.0.0.1:3128/stats && exit 0
+            sleep 1
+          done
+          docker logs egress-ci
+          exit 1
+
+  # The optional Firecrawl profile, end to end (heavy images, real sites): informational only, so a slow pull or a
+  # flaky third-party page never fails the build. Look at its log when it goes red.
+  firecrawl-profile-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - name: Scrape through the Firecrawl fallback; an internal address is refused
+        run: scripts/smoke-firecrawl.sh

@@ -1,0 +1,5 @@
+<html><body><script>
+const T = new URLSearchParams(location.search).get('t');
+const f = document.createElement('form'); f.method = 'post'; f.action = T + '/v/form';
+document.body.appendChild(f); f.submit();
+</script></body></html>

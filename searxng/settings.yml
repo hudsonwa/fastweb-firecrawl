@@ -1,0 +1,76 @@
+# SearXNG for fastweb (and optionally Firecrawl's own search). Private Docker network only, no host port.
+use_default_settings: true
+server:
+  # Placeholder only: SearXNG replaces it with $SEARXNG_SECRET (compose reads it from the untracked .env).
+  secret_key: "placeholder-overridden-by-SEARXNG_SECRET"
+  limiter: false
+  image_proxy: false
+  public_instance: false
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+  # Short suspensions: one rate-limited engine must not take search away for an hour (defaults: CAPTCHA 3600 s).
+  suspended_times:
+    SearxEngineAccessDenied: 120
+    SearxEngineCaptcha: 300
+    SearxEngineTooManyRequests: 120
+outgoing:
+  # Engines run in parallel and the slowest decides the reply time. yahoo typically answers in
+  # ~0.7-1.0 s; 1.0 s keeps p90 under a second (fastweb's own deadline and fallback cover the rest).
+  request_timeout: 1.0
+  max_request_timeout: 2.0   # >= every per-engine timeout below (yahoo 1.5, privacywall 1.6)
+engines:
+  # Engine choice from paced probes: many engines refuse automated traffic (access denied, CAPTCHA, rate limits) or
+  # return nothing, so only a few are enabled. bing was observed returning other queries' results (session leaks),
+  # so it is off. fastweb asks for yahoo first and brave,privacywall (requested explicitly via engines=) as its one
+  # retry; its relevance guard drops off-topic answers. Results vary by network location: re-probe for yours.
+  - name: bing
+    disabled: true
+  - name: yahoo
+    disabled: false
+    # yahoo p50 ~0.75-0.8 s with a tail past 1.0 s; at the global 1.0 s those calls became `engine timeout`.
+    # 1.5 s lets them answer; fastweb's hedge (1.1 s) still starts the fallback for the slow tail.
+    timeout: 1.5
+  - name: privacywall
+    disabled: true   # fastweb fallback only (requested explicitly via engines=); too slow for every query
+    timeout: 1.6
+  - name: google
+    disabled: true
+  - name: qwant
+    disabled: true
+  - name: brave
+    disabled: true   # fastweb fallback only (requested explicitly via engines=)
+  - name: google cse
+    disabled: true
+  - name: duckduckgo
+    disabled: true
+  - name: wikidata
+    disabled: true
+  - name: wikipedia
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: mojeek
+    disabled: true
+  - name: yep
+    disabled: true
+  - name: quark
+    disabled: true
+  - name: fireball
+    disabled: true
+  - name: crowdview
+    disabled: true
+  - name: tusksearch
+    disabled: true
+  - name: resulthunter
+    disabled: true
+  - name: zapmeta
+    disabled: true
+  - name: vuhuv
+    disabled: true
+  - name: yacy
+    disabled: true
+  - name: searchmysite
+    disabled: true

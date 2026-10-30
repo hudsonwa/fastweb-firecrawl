@@ -1,0 +1,16 @@
+<html><head><title>vectors</title></head><body><h1>Vector page</h1><p id=out></p>
+<script>
+const q = new URLSearchParams(location.search), T = q.get('t'), O = q.get('o');
+const out = ['main-ws:' + typeof window.WebSocket, 'main-rtc:' + typeof window.RTCPeerConnection];
+let w = null; try { w = window.open(T + '/v/popup'); } catch (e) {}
+out.push('popup:' + (w === null ? 'null' : 'opened'));
+try { navigator.sendBeacon(T + '/v/beacon', 'x'); } catch (e) {}
+const l = document.createElement('link'); l.rel = 'prefetch'; l.href = T + '/v/prefetch'; document.head.appendChild(l);
+const e = encodeURIComponent(T);
+new Worker('worker.js?t=' + e);
+try { new SharedWorker('shared.js?t=' + e); } catch (x) {}
+for (const p of ['frame.html', 'refresh.html', 'form.html']) {
+  const f = document.createElement('iframe'); f.src = O + '/' + p + '?t=' + e; document.body.appendChild(f);
+}
+document.getElementById('out').textContent = out.join(' ') + ' vectors loaded ' + 'padding text '.repeat(20);
+</script></body></html>

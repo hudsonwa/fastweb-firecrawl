@@ -1,0 +1,42 @@
+name: Bug report
+description: Something returned the wrong content, the wrong status, or broke.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: fastweb-firecrawl version or commit
+      placeholder: 0.1.0 / abc1234
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL or search query
+      description: The page or query that misbehaves (remove any tokens from the query string).
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Request
+      description: The request body you sent (or the SDK call).
+      render: json
+  - type: textarea
+    id: response
+    attributes:
+      label: What came back
+      description: Status code, the error, and `data.metadata.fastweb` (engine, timings, fallback_reason) if any.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: dropdown
+    id: tiers
+    attributes:
+      label: Optional tiers enabled
+      multiple: true
+      options: [browser tier, Firecrawl fallback, neither]

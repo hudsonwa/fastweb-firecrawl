@@ -1,0 +1,15 @@
+# Hand-labelled search pack. expected = domains / URL prefixes; a hit means any appears in the top 5.
+queries:
+  - {id: py-asyncio, cat: programming, q: "python asyncio gather documentation", expected: [docs.python.org]}
+  - {id: rust-tokio, cat: programming, q: "tokio spawn blocking docs", expected: [docs.rs, tokio.rs]}
+  - {id: mdn-fetch, cat: programming, q: "javascript fetch api abort controller", expected: [developer.mozilla.org]}
+  - {id: news-world, cat: news, q: "latest world news today", expected: [reuters.com, apnews.com, bbc.com, abc.net.au, theguardian.com]}
+  - {id: news-ai, cat: news, q: "OpenAI news this week", expected: [openai.com, theverge.com, reuters.com, techcrunch.com]}
+  - {id: london-weather, cat: local, q: "London weather forecast", expected: [metoffice.gov.uk, bbc.com, bbc.co.uk, accuweather.com]}
+  - {id: nyc-transit, cat: local, q: "MTA subway map New York", expected: [mta.info, new.mta.info]}
+  - {id: price-iphone, cat: product, q: "iPhone 17 Pro price", expected: [apple.com]}
+  - {id: price-rtx, cat: product, q: "RTX 5090 price", expected: [nvidia.com, pcpartpicker.com, amazon.com, bestbuy.com]}
+  - {id: acad-attention, cat: academic, q: "attention is all you need paper", expected: [arxiv.org, papers.nips.cc, proceedings.neurips.cc]}
+  - {id: acad-crispr, cat: academic, q: "CRISPR Cas9 review nature", expected: [nature.com, ncbi.nlm.nih.gov, pubmed.ncbi.nlm.nih.gov]}
+  - {id: nav-cpython, cat: navigational, q: "github cpython repository", expected: [github.com/python/cpython]}
+  - {id: nav-searxng, cat: navigational, q: "searxng documentation", expected: [docs.searxng.org, github.com/searxng]}

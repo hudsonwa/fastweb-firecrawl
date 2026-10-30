@@ -1,0 +1,19 @@
+# url, class, phrase that must appear in clean text (case/whitespace-insensitive); body: a phrase that must appear
+# after the first line (fastweb injects the <title> there, which alone satisfied the old checks)
+# (bbc.com/news: "ago" from "N hrs/mins ago")
+- {cls: static, url: "https://example.com/", phrase: "for use in documentation"}
+- {cls: static, url: "https://docs.python.org/3/library/json.html", phrase: "JSON encoder and decoder"}
+- {cls: static, url: "https://en.wikipedia.org/wiki/Sydney", phrase: "New South Wales"}
+- {cls: news, url: "https://www.aljazeera.com/", phrase: "Al Jazeera", body: "Al Jazeera Media Network"}
+- {cls: news, url: "https://www.abc.net.au/news", phrase: "ABC", body: "Top Stories"}
+- {cls: news, url: "https://www.bbc.com/news", phrase: "BBC", body: "ago"}
+- {cls: news, url: "https://apnews.com/", phrase: "Associated Press", body: "Politics"}
+- {cls: news, url: "https://www.reuters.com/", phrase: "Reuters", body: "More Top Stories"}
+- {cls: news, url: "https://www.theguardian.com/international", phrase: "Guardian", body: "Analysis"}
+- {cls: js, url: "https://github.com/firecrawl/firecrawl", phrase: "README"}
+- {cls: js, url: "https://react.dev/learn", phrase: "Quick Start"}
+- {cls: huge, url: "https://en.wikipedia.org/wiki/List_of_Falcon_9_and_Falcon_Heavy_launches", phrase: "Cape Canaveral"}
+- {cls: pdf, url: "https://arxiv.org/pdf/1706.03762", phrase: "Attention"}
+- {cls: error, url: "https://www.bbc.com/news/this-page-does-not-exist-404", phrase: null}
+- {cls: error, url: "https://docs.python.org/3/no-such-page-xyz.html", phrase: null}
+- {cls: botwall, url: "https://www.bom.gov.au/nsw/forecasts/sydney.shtml", phrase: "Sydney"}

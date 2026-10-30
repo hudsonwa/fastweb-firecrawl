@@ -1,0 +1,12 @@
+<html><body><script>
+const T = new URLSearchParams(location.search).get('t');
+fetch(T + '/v2/oopif2-fetch', {mode: 'no-cors'}).catch(() => {});
+try { const s = new WebSocket(T.replace('http', 'ws') + '/v2/oopif-ws'); s.onerror = () => {}; } catch (e) {}
+try { navigator.sendBeacon(T + '/v2/oopif-beacon', 'x'); } catch (e) {}
+try { const th = new URL(T).hostname;
+  const pc = new RTCPeerConnection({iceServers: [{urls: 'stun:' + th + ':3478'}, {urls: 'turn:' + th + ':3478?transport=udp', username: 'u', credential: 'p'}]});
+  pc.createDataChannel('x'); pc.createOffer().then(o => pc.setLocalDescription(o)); } catch (e) {}
+try { window.open(T + '/v2/oopif-popup'); } catch (e) {}
+const f = document.createElement('form'); f.method = 'post'; f.action = T + '/v2/oopif-form'; f.target = '_top';
+setTimeout(() => {}, 0);
+</script>oopif2</body></html>

@@ -1,0 +1,11 @@
+<html><body><script>
+const R = (s) => fetch(location.origin + '/report/' + encodeURIComponent(s)).catch(() => {});
+R('rtc-type:' + typeof RTCPeerConnection + ' ws-type:' + typeof WebSocket);
+try {
+  const pc = new RTCPeerConnection({iceServers: [{urls: 'stun:172.22.0.2:3478'}, {urls: 'turn:172.22.0.2:3478?transport=udp', username: 'u', credential: 'p'}, {urls: 'stun:fwtest-target:3478'}]});
+  pc.createDataChannel('x');
+  pc.onicecandidate = (e) => R('cand:' + (e.candidate ? e.candidate.candidate : 'done'));
+  pc.onicegatheringstatechange = () => R('gather:' + pc.iceGatheringState);
+  pc.createOffer().then(o => pc.setLocalDescription(o));
+} catch (e) { R('rtc-err:' + e); }
+</script>rtc frame text</body></html>

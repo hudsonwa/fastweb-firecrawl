@@ -1,0 +1,23 @@
+<html><head><title>vectors2</title>
+<link rel="dns-prefetch" id=dp><link rel="preconnect" id=pc><link rel="stylesheet" id=css>
+</head><body><h1>Vector page 2</h1><p id=out></p>
+<script>
+const q = new URLSearchParams(location.search), T = q.get('t'), O = location.origin;
+const e = encodeURIComponent(T), out = [];
+document.getElementById('pc').href = T + '/v2/preconnect';
+document.getElementById('css').href = T + '/v2/css';
+fetch(T + '/v2/main-fetch', {mode: 'no-cors'}).catch(() => {});
+const x = new XMLHttpRequest(); x.open('GET', T + '/v2/main-xhr'); x.send();
+new Image().src = T + '/v2/img';
+try { new EventSource(T + '/v2/sse'); } catch (z) {}
+const s = document.createElement('script'); s.src = T + '/v2/main-script'; document.head.appendChild(s);
+const f1 = document.createElement('iframe'); f1.src = T + '/v2/iframe-direct'; document.body.appendChild(f1);
+const f2 = document.createElement('iframe'); f2.src = O + '/redir?to=' + encodeURIComponent(T + '/v2/iframe-redirect'); document.body.appendChild(f2);
+fetch(O + '/redir?to=' + encodeURIComponent(T + '/v2/fetch-redirect'), {mode: 'no-cors'}).catch(() => {});
+new Worker('worker2.js?t=' + e);
+if (navigator.serviceWorker) navigator.serviceWorker.register('sw.js?t=' + e).then(() => out.push('sw:ok'), z => out.push('sw:' + z.name));
+// cross-site OOPIF (other host for the origin = its IP spelled differently is not possible here; use the target host
+// itself as the 'other site' frame via srcdoc-free page served by the origin under a different name)
+const f3 = document.createElement('iframe'); f3.src = q.get('o2') + '/oopif2.html?t=' + e; document.body.appendChild(f3);
+setTimeout(() => { document.getElementById('out').textContent = out.join(' ') + ' vectors2 loaded ' + 'padding text '.repeat(20); }, 1500);
+</script></body></html>

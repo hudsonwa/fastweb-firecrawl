@@ -1,0 +1,19 @@
+name: Feature request
+description: A Firecrawl option fastweb-firecrawl does not support yet, or a new capability.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like fastweb-firecrawl to do?
+  - type: textarea
+    id: compat
+    attributes:
+      label: Firecrawl compatibility
+      description: If this is a Firecrawl API option or endpoint, link its documentation.

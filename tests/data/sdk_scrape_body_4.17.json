@@ -1,0 +1,17 @@
+{
+ "blockAds": true,
+ "fastMode": false,
+ "formats": [
+  "markdown",
+  "html"
+ ],
+ "maxAge": 14400000,
+ "mobile": false,
+ "onlyMainContent": true,
+ "origin": "python-sdk@4.17.0",
+ "removeBase64Images": true,
+ "skipTlsVerification": true,
+ "storeInCache": true,
+ "timeout": 60000,
+ "url": "https://www.aljazeera.com/"
+}

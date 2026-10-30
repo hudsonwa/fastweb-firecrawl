@@ -1,0 +1,13 @@
+# Use a Firecrawl you already run elsewhere as fastweb's last-resort fallback, instead of the bundled profile:
+#
+#   FIRECRAWL_UPSTREAM=https://firecrawl.example.internal docker compose \
+#     -f docker-compose.yml -f examples/compose.remote-firecrawl.yml up -d
+#
+# fastweb can only reach it over `backend` (a normal bridge network). That Firecrawl fetches pages with its own
+# network access, outside fastweb's SSRF guard: give it the same containment as the bundled profile (an internal
+# network whose only way out is a guarding proxy) or accept that risk; see SECURITY.md.
+services:
+  fastweb:
+    environment:
+      FIRECRAWL_UPSTREAM: ${FIRECRAWL_UPSTREAM:?set FIRECRAWL_UPSTREAM to your Firecrawl base URL}
+      FASTWEB_FALLBACK_TIMEOUT: ${FASTWEB_FALLBACK_TIMEOUT:-15}

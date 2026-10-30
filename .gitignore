@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local output
+bench/out/
+*.log
+tests/egress_stack/log/
+build/
+dist/
+.mypy_cache/
+.coverage
+htmlcov/

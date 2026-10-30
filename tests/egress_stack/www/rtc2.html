@@ -1,0 +1,13 @@
+<html><body><h1>rtc2</h1><p>padding text for a stable page body here.</p><script>
+const R = (s) => fetch(location.origin + '/report/' + encodeURIComponent(s)).catch(() => {});
+const f = document.createElement('iframe'); document.body.appendChild(f);
+const W = f.contentWindow;
+R('blank-rtc:' + typeof W.RTCPeerConnection + ' blank-ws:' + typeof W.WebSocket);
+try {
+  const pc = new W.RTCPeerConnection({iceServers: [{urls: 'stun:172.22.0.2:3478'}, {urls: 'turn:172.22.0.2:3478?transport=udp', username: 'u', credential: 'p'}]});
+  pc.createDataChannel('x');
+  pc.onicecandidate = (e) => R('cand:' + (e.candidate ? e.candidate.candidate : 'done'));
+  pc.createOffer().then(o => pc.setLocalDescription(o));
+} catch (e) { R('rtc-err:' + e); }
+try { const s = new W.WebSocket('ws://fwtest-target/blank-ws'); s.onerror = () => R('ws-error'); } catch (e) { R('ws-err:' + e); }
+</script></body></html>
