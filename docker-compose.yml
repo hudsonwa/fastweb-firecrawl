@@ -230,7 +230,7 @@ services:
   # ---------------------------------------------------------------------------------------------------------------
   api:
     profiles: [firecrawl]
-    image: ghcr.io/firecrawl/firecrawl:latest@sha256:780592f58b4a99beee4424f1acadacf34bcefb02d5893f4bd1a9cb2554bf0a19
+    image: ghcr.io/firecrawl/firecrawl:latest@sha256:aa3e88dab3494de0402c511c7bbf10021ae2f077c0f96537cdce46e898d44c6a
     environment:
       <<: *firecrawl-proxy
       NO_PROXY: localhost,127.0.0.1,playwright-service
