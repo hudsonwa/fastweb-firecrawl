@@ -224,3 +224,11 @@ def pytest_xdist_auto_num_workers(config):
     """`-n auto`: at most 4 workers, half the CPUs. Many tests measure real timing and run CPU-heavy extraction in
     worker processes of their own; one xdist worker per core starves them into false timeouts."""
     return max(1, min(4, (os.cpu_count() or 2) // 2))
+
+
+@pytest.fixture(autouse=True)
+def _host_memory_ignored(monkeypatch):
+    """The prefetch memory guard reads the real cgroup or RSS, which on a Linux CI runner is the test process itself.
+    Tests that exercise the guard pass Settings(mem_usage=...), which takes precedence."""
+    from fastweb_firecrawl import pipeline
+    monkeypatch.setattr(pipeline, "mem_usage", lambda fallback_limit=0: (0, 0))
