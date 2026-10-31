@@ -5,6 +5,20 @@ the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-31
+
+### Security
+
+- Markdown reference definitions inside block quotes and list items no longer backtrack: a crafted page with many
+  nested `>` markers could keep link rewriting busy for seconds per page. The container prefix is now matched
+  atomically, and a regression test bounds it.
+
+### Fixed
+
+- The startup warm-up gives an engine set up after 3 engine-timeout answers instead of retrying for minutes when an
+  engine always times out.
+- The prefetch tests no longer read the host's memory, which held every prefetch back on Linux CI runners.
+
 ## [0.1.0] - 2026-10-30
 
 First public release.
@@ -84,5 +98,6 @@ First public release.
   pip-audit and a Docker build and boot smoke test; Dependabot is configured.
 - Benchmark harness (`bench/bench.py`), `examples/`, issue and pull request templates and a code of conduct.
 
-[Unreleased]: https://github.com/hudsonwa/fastweb-firecrawl/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hudsonwa/fastweb-firecrawl/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/hudsonwa/fastweb-firecrawl/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hudsonwa/fastweb-firecrawl/releases/tag/v0.1.0

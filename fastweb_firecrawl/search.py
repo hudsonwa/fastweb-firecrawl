@@ -20,6 +20,7 @@ from .settings import Settings
 
 KEY_PREFIX = "fastweb:search:"
 BUCKETS = (10, 20, 50, 100)
+WARM_TIMEOUT_TRIES = 3  # warm-up answers with an engine timeout before giving that engine set up
 
 
 def normalize_query(q: str) -> str:
@@ -377,6 +378,7 @@ class Searcher:
             params["categories"] = self.categories
         ok = 0
         for engines in sets:
+            slow = 0  # engine-timeout answers: an engine that always times out is not retried for minutes
             for i in range(tries):
                 try:
                     r = await self.client.get(self.url, params={**params, **({"engines": engines} if engines else {})},
@@ -384,6 +386,10 @@ class Searcher:
                     if r.status_code == 200 and not _timed_out(r):
                         ok += 1
                         break
+                    if r.status_code == 200:
+                        slow += 1
+                        if slow >= WARM_TIMEOUT_TRIES:
+                            break
                 except (httpx.HTTPError, ValueError):
                     pass
                 if i + 1 < tries:

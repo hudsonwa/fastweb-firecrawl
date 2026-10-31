@@ -621,3 +621,13 @@ def test_malformed_searxng_answer_over_http_is_not_500(ctx, monkeypatch):
     monkeypatch.setattr(Searcher, "_attempt", bad)
     r = httpx.post(aurl + "/v2/search", json={"query": "malformed answer", "limit": 3})
     assert r.status_code == 503 and r.json()["success"] is False
+
+
+def test_warm_gives_up_on_an_engine_that_always_times_out():
+    calls = []
+
+    def h(request):
+        calls.append(1)
+        return httpx.Response(200, json={"results": [], "unresponsive_engines": [["privacywall", "timeout"]]})
+    s = Searcher(httpx.AsyncClient(transport=httpx.MockTransport(h)), "http://searx", engines="privacywall")
+    assert not run(s.warm(tries=30, pause=0)) and len(calls) == 3

@@ -77,7 +77,8 @@ ANGLE_DEST = re.compile(r"<([^<>\n]*)>")
 _P = r"[^()\x00-\x20]"
 BARE_DEST = re.compile(rf"(?:{_P}|\((?:{_P}|\((?:{_P}|\({_P}*\))*\))*\))+")
 # A reference definition, also inside block quotes and list items (CommonMark makes those document-global too).
-_CONTAINER = r"(?:[ ]{0,3}(?:>|[-+*]|\d{1,9}[.)])[ \t]?){0,16}"
+# atomic: the spaces around markers could otherwise be split many ways and a failed match backtracks for seconds
+_CONTAINER = r"(?>(?:[ ]{0,3}(?:>|[-+*]|\d{1,9}[.)])[ \t]?){0,16})"
 REF_DEF = re.compile(r"^(" + _CONTAINER + r"[ ]{0,3}\[(?:[^\[\]\\\n]|\\.){1,999}\]:[ \t]*(?:\r?\n)?[ \t]*)"
                      r"(<[^<>\n]*>|\S+)", re.M)
 AUTOLINK = re.compile(r"<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^<>\x00-\x20]*)>")

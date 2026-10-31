@@ -66,3 +66,11 @@ def test_fences_are_still_respected():
     out = extract.strip_inline_tags(md)
     assert "a1\n" in out and "b2\n" in out and "<sup>kept</sup>" in out and "<sup>kept too</sup>" in out
     assert extract.strip_inline_tags("x\n```\n<sup>unclosed</sup>") == "x\n```\n<sup>unclosed</sup>"
+
+
+def test_ref_def_container_prefix_is_linear():
+    md = ">   " * 16 + "x\n"
+    t = time.monotonic()
+    links.absolutize_links(md * 2000 + "> - [a]: javascript:x\n", "")
+    assert time.monotonic() - t < 0.5
+    assert links.absolutize_links("> - [a]: javascript:x", "") == "> - [a]: #"
