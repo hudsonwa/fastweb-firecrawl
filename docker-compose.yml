@@ -117,7 +117,7 @@ services:
 
   # Cache-only Redis for fastweb: bounded (LRU eviction), no persistence, private network only.
   fastweb-redis:
-    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    image: redis:8.10.0-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
     command: redis-server --maxmemory 192mb --maxmemory-policy allkeys-lru --save '' --appendonly no
     read_only: true
     tmpfs: ["/data:uid=999,gid=1000,size=8m"]   # nothing is persisted; the redis user owns it
@@ -339,7 +339,7 @@ services:
   # Stops the Firecrawl profile from starting until its two secrets are set in .env (they have no default).
   firecrawl-secrets:
     profiles: [firecrawl]
-    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    image: redis:8.10.0-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
     entrypoint: ["sh", "-c", "test -n \"$$P\" && test -n \"$$K\" || { echo 'set FIRECRAWL_POSTGRES_PASSWORD and FIRECRAWL_BULL_AUTH_KEY in .env' >&2; exit 1; }"]
     environment:
       P: ${FIRECRAWL_POSTGRES_PASSWORD:-}
@@ -351,7 +351,7 @@ services:
 
   firecrawl-redis:
     profiles: [firecrawl]
-    image: redis:7.4.12-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    image: redis:8.10.0-alpine@sha256:978f0e01593e65eed801f2402944efcd936d43b5027e4908a7897baf88ed6241
     networks: [firecrawlnet]
     command: redis-server --save "" --appendonly no
     read_only: true
