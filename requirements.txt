@@ -8,4 +8,4 @@ markdownify==1.2.3
 redis==8.1.0
 charset-normalizer==3.5.2
 curl_cffi==0.17.0
-websockets==17.3
+websockets==17.4
