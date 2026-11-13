@@ -1,6 +1,6 @@
 # fastweb-firecrawl image: the API (default command) and, with `python -m fastweb_firecrawl.egress`, the browser's egress proxy.
 # Build context: the repository root (see .dockerignore).
-FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 # glibc: few arenas, give freed memory back early; extraction itself runs in recycled processes.
 ENV MALLOC_ARENA_MAX=2 MALLOC_TRIM_THRESHOLD_=131072 MALLOC_MMAP_THRESHOLD_=131072
